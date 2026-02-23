@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploys a Lambda function to analyze AWS costs and waste.
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: The name of the S3 bucket where the Lambda deployment package is stored.
+
+Resources:
+  CostAndWasteAnalyzerLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CostAndWasteAnalyzerLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: CostExplorerAndMetricsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ce:GetCostAndUsage
+                  - cloudwatch:GetMetricStatistics
+                  - ec2:DescribeInstances
+                  - ec2:DescribeVolumes
+                Resource: '*'
+        - PolicyName: LambdaLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 'arn:aws:logs:*:*:*'
+
+  CostAndWasteAnalyzerLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CostAndWasteAnalyzerFunction
+      Runtime: python3.9
+      Role: !GetAtt CostAndWasteAnalyzerLambdaRole.Arn
+      Handler: src.main.lambda_handler
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: cost-and-waste-analyzer.zip
+      Timeout: 120
+      MemorySize: 256
